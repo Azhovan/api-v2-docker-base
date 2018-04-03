@@ -1,0 +1,49 @@
+resources:
+  - name: master-source-code
+    type: git
+    check_every: 6h
+    webhook_token: ((github_webhook_token))
+    source:
+        uri: ((repo_uri))
+        branch: master
+
+  - name: docker-image-cli
+    type: docker-image
+    source:
+      repository: ((docker_repository_cli))
+      username: ((docker_username))
+      password: ((docker_password))
+
+  - name: docker-image-fpm
+    type: docker-image
+    source:
+      repository: ((docker_repository_fpm))
+      username: ((docker_username))
+      password: ((docker_password))
+
+  - name: '@every-24h'
+    type: time
+    source:
+      interval: 24h
+
+jobs:
+  - name: build-docker
+    serial: true
+    plan:
+
+    - get: source-code
+      resource: master-source-code
+      trigger: true
+
+    - get: '@every-24h'
+      trigger: true
+
+    - aggregate:
+      - put: docker-image-cli
+        params:
+          build: source-code/cli
+          tag_as_latest: true
+      - put: docker-image-fpm
+        params:
+          build: source-code/fpm
+          tag_as_latest: true
